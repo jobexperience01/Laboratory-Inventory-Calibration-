@@ -1,0 +1,187 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lab Monthly Inventory</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+*{box-sizing:border-box}body{font:14px Arial,sans-serif;margin:0;background:#f3f5f8;color:#1b2430}
+header{background:#1f4e79;color:#fff;padding:12px 18px}h1{margin:0;font-size:18px}
+main{padding:14px 18px}.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+button,select,input{font:inherit}button{padding:7px 12px;border:1px solid #1f4e79;background:#fff;color:#1f4e79;border-radius:6px;cursor:pointer}
+button.p{background:#1f4e79;color:#fff}button.x{border-color:#b3261e;color:#b3261e}button.tab.on{background:#1f4e79;color:#fff}
+.wrap{overflow:auto;background:#fff;border:1px solid #d5dbe3;border-radius:8px}table{border-collapse:collapse;width:100%}
+th{background:#e8eef5;text-align:left;padding:7px;font-size:12px;position:sticky;top:0}td{padding:2px 4px;border-top:1px solid #e5e9ef}
+td input{width:100%;min-width:60px;padding:5px;border:1px solid transparent;border-radius:4px;background:transparent}td input:focus{border-color:#1f4e79;background:#fff;outline:0}
+td.n input{min-width:50px;width:70px}td.s{text-align:center;color:#667;width:34px}.del{padding:2px 8px;border:0;color:#b3261e;font-size:16px}
+tr.od td{background:#fde8e6}tr.soon td{background:#fff4d6}.f{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px}.f label{display:flex;gap:6px;align-items:center}
+.f input,#d{padding:6px;border:1px solid #b8c2cf;border-radius:6px}small{color:#556}
+.about{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:18px}
+.card{background:#fff;border:1px solid #d5dbe3;border-radius:8px;padding:16px 18px}
+.card h2{margin:0 0 10px;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:#2e7d5b}
+.card h3{margin:0;font-size:18px}.card .role{color:#667;margin:2px 0 10px}.card p{color:#556;margin:10px 0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}.chips span{background:#dcebe4;border-radius:16px;padding:5px 12px;font-size:13px;color:#2b4a3c}
+.card a{color:#1a56a8;text-decoration:none;display:block;margin:8px 0}.ver{text-align:center;color:#778;padding:16px 0 24px;font-size:13px}
+</style></head><body>
+<header><h1>Laboratory Monthly Inventory &amp; Calibration</h1></header>
+<main>
+<div class="bar" id="tabs"></div>
+<div class="bar"><label>Date <input type="date" id="d"></label><label>Saved records <select id="sv"></select></label>
+<small id="info"></small></div>
+<div class="bar"><button class="p" id="add">+ Add item</button><button id="sd">Save list as default</button><button id="rd" class="x">Reset to default list</button><button id="dr" class="x">Delete this month</button>
+<span style="flex:1"></span><button class="p" id="xl">Download Excel</button><button class="p" id="pf">Download PDF</button></div>
+<div class="wrap"><table><thead id="th"></thead><tbody id="tb"></tbody></table></div>
+<div class="f"><label>Done By <input id="by"></label><label>Checked By <input id="chk"></label></div>
+<div class="about">
+<section class="card"><h2>👤 Built by</h2><h3>Md Shahariar Ahmed</h3><div class="role">Developer</div>
+<div class="chips"><span>📜 EIT (APEGS)</span><span>🥋 LSS Green Belt</span><span>🎓 M.Eng Industrial Systems Engineering</span><span>🎓 B.Sc Mechanical Engineering</span></div>
+<p>Designed and built this app to make monthly lab stock and calibration record keeping fast, private, and free.</p></section>
+<section class="card"><h2>✉️ Contact &amp; Feedback</h2>
+<a href="mailto:jobexperience01@gmail.com">📧 jobexperience01@gmail.com</a>
+<a href="https://orcid.org/0009-0003-6480-4817" target="_blank" rel="noopener">🆔 ORCID: 0009-0003-6480-4817</a>
+<p>Found a bug or have a feature request? Reach out any time.</p>
+<div class="bar"><button id="shr">🔗 Share this app</button><button id="fb">📝 Send feedback</button></div></section>
+</div>
+<div class="ver">Lab Monthly Inventory · v1.0.0</div>
+</main>
+<script>
+const $=s=>document.querySelector(s),D=s=>s.trim().split('\n').map(l=>l.split('|'));
+const T={
+app:{n:'Apparatus (Glassware)',t:'Current Stock of Laboratory Apparatus',k:['name','mfr','cur','use'],
+c:[['name','Name of the Glassware'],['mfr','Manufacturer'],['prev','Previous Stock','n'],['cur','Current Stock','n'],['use','In Use','n'],['rem','Remark']]},
+eqp:{n:'Machine & Equipment',t:'Current Stock of Laboratory Machine & Equipment',k:['name','mfr','cur','rem'],
+c:[['name','Name of the Equipment'],['mfr','Manufacturer'],['prev','Previous Stock','n'],['cur','Current Stock','n'],['rem','Remarks']]},
+cal:{n:'Calibration Record',t:'In-house Calibrated Equipment Record List - QA',k:['name','id','int','ref'],
+c:[['name','Name of the Equipment'],['id','ID No.'],['int','Interval (e.g. 6 months)'],['done','Calibration done on','d'],['due','Calibration due on','d'],['ref','Ref. Standard Equipment ID'],['rem','Remarks']]}};
+const DEF={app:D(`Pipette-10 ml|Germany, China|5|2
+Pipette-25 ml|China|5|1
+Pipette Filler|Germany|11|3
+Burette-50 ml|China|2|1
+Burette Stand|China|1|1
+Glass Rod|BD|4|1
+Beaker- 100 ml|China|1|0
+Beaker- 250 ml|China|3|4
+Beaker- 500 ml|China|3|0
+Beaker- 700 ml|China|1|0
+Beaker- 500 ml (Plastic)|China|3|1
+Beaker- 1000 ml (Plastic)|China|1|3
+Measuring Cylinder - 10 ml|China|3|0
+Measuring Cylinder - 100 ml|China|1|1
+Measuring Cylinder - 250 ml|China|1|1
+Measuring Cylinder - 500 ml|China|1|1
+Measuring Cylinder - 1000 ml|China|0|1
+Measuring Cylinder - 250 ml (Plastic)|China|3|1
+Conical Flask - 250 ml|China|3|4
+Conical Flask - 500 ml|China|1|1
+Volumetric Flask - 50 ml|China|3|2
+Volumetric Flask - 100 ml|China|0|3
+Volumetric Flask - 250 ml|China|1|0
+Volumetric Flask - 500 ml|China|2|0
+Volumetric Flask - 1000 ml|China|2|1
+Wash Bottle (plastic)|China|3|1
+Test Tube|China|8|3
+Filter Paper|UK|2 Box|1 Box
+Watch Glass|China|14|1
+Spatula|China|2|1
+Petridish|UK|2|0
+Tongue|BD|0|1
+Forceps|Pakistan|2|1
+Funnel|UK|0|2
+Morter with Pastel|BD|1|1
+Decicator with Selica Gel||0|1
+Gas Burner/ Sprit Lamp with Stand.|China|2|0
+Cleaning Brush|BD|7|1
+Gravity Bottle|UK|2|0
+Thermometer(°C)|UK|18|2
+Hydrometer|China|10|3`),
+eqp:D(`HRD Tester(G1-EHRD002)|Leader Tech, China|1|Ok
+Battery Multiple Performance Tester (G1-ELCT001) (3 circuit)|JINFAN, China|1|two circuit is out of function
+Life Cycle Tester(G1-ELCT002) (2 circuit)|JINFAN, China|1|one circuit is out of function
+Battery Tester (G1-ELCT003) (6 circuit)|JINFAN, China|1|one circuit is out of function
+Charging Rectifier|JINFAN, China|2|Ok
+Multimeter|Sanwa -Japan|8|Running Use-6Pcs
+Clamp on Meter|HIOKI - Japan|1|Ok
+Midtronics|USA|1|Ok
+DHC Meter|Taiwan|2|Connecting cable problem-01 Pcs
+Digital Thermometer(°C)|Hanna, USA|2|Ok
+Screw Gose|China|1|Battery Low/Not Ok
+PH Meter|SWITZERLAND|1|Ok
+Moisture Analyser|SWITZERLAND|1|Ok
+Conductivity Meter|Hanna, USA|1|Ok
+Etectric Hot Plate|China|1|Ok
+Battery Cutting machine|China|1|Condition is not suitable
+Slide Caliper|China|2|OK
+Micro Weighing Scale|China|2|Ok
+Weighing Scale (100 Kg)|China|2|OK
+Water leveller|China|1|OK
+Lansel Battery Tester|China|5|Running Use-3Pcs`),
+cal:D(`Moisture Analyzer|RGL-QA-01|1 month|RABL WB-01, DM water
+Clamp on meter|RGL-QA-02|1 year|RBL QC-55
+pH Meter|RGL-QA-03|1 month|Std. Solution: 33646
+TDS & Conductivity meter|RGL-QA-04|6 months|Std. Solution: HI7033
+Micro Weighing Scale (2 nos)|RGL-QA-05 (A,B)|6 months|RABL WB-01
+Digital Thermometer (2 nos)|RGL-QA-06 (A,B)|1 year|MME-008
+Digital Slide Calipers (2 nos)|RGL-QA-07 (A,B)|1 year|MME-001
+Multimeter (6 nos)|RGL-QA-08 (A-F)|6 months|RGL-QA-02
+Volumetric Flask 50 ml (2 nos)|RGL-QA-09 (A,B)|1 year|MC-01
+Volumetric Flask 100 ml (2 nos)|RGL-QA-010 (A,B)|1 year|
+Measuring cylinder 100 ml|RGL-QA-011|1 year|
+Measuring cylinder 250 ml|RGL-QA-012||
+Measuring cylinder 1000 ml|RGL-QA-013||
+Volumetric Flask 1000 ml|RGL-QA-014||
+Burrete|RGL-QA-015||
+Pipette 10 ml (2 nos)|RGL-QA-016 (A,B)|1 year|RGLQA-05, DM WATER
+Hydrometer (4 nos)|RGL-QA-017 (A-D)|6 months|RGLQA-05, RGL-QA-16
+Temperature Controller for Testing Bath (2 nos)|RGL-QA-18 (A,B)|1 year|RGL-QA-06
+Weighing Scale-100 Kg (2 nos)|RGL-QA-19 (A,B)|1 year|MME015 & MME016
+Weight Box|RABL-WB-01|1 year|RBL QC-06
+Battrey Formation Charger & Discharger (1)|G1-ERTF019|1 year|RGL-QA-02, MME-005
+Battrey Formation Charger & Discharger (2)|G1-ERTF020|1 year|
+Battery life cycle tester (µC-XCF)|G1-ELCT002|1 year|`)};
+let db={def:{},rec:{}};try{db=JSON.parse(localStorage.getItem('labinv'))||db}catch(e){}
+const save=()=>{try{localStorage.setItem('labinv',JSON.stringify(db))}catch(e){}};
+let tab='app',R;
+const ym=()=>$('#d').value.slice(0,7),key=()=>tab+'|'+ym(),esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const dmy=s=>s?s.split('-').reverse().join('/'):'';
+function build(){const k=key();if(db.rec[k])return db.rec[k];
+ const ks=Object.keys(db.rec).filter(x=>x.startsWith(tab+'|')&&x.slice(-7)<ym()).sort();let items;
+ if(ks.length)items=db.rec[ks.pop()].items.map(o=>({...o,prev:o.cur,rem:tab=='cal'?o.rem:''}));
+ else items=(db.def[tab]||DEF[tab].map(r=>Object.fromEntries(T[tab].k.map((x,i)=>[x,r[i]||''])))).map(o=>({...o,prev:o.cur}));
+ return{items,by:'',chk:''}}
+function persist(){R.date=$('#d').value;db.rec[key()]=R;save();saved()}
+function saved(){const ks=Object.keys(db.rec).filter(x=>x.startsWith(tab+'|')).sort().reverse();
+ $('#sv').innerHTML='<option value="">— '+ks.length+' saved —</option>'+ks.map(x=>`<option value="${db.rec[x].date||x.slice(-7)+'-01'}">${x.slice(-7)}</option>`).join('')}
+function due(i){const m=/(\d+)\s*(month|year)/i.exec(i.int||'');if(!m||!i.done)return;const d=new Date(i.done+'T00:00:00Z');
+ d.setUTCMonth(d.getUTCMonth()+(m[2][0].toLowerCase()=='y'?12:1)*m[1]);d.setUTCDate(d.getUTCDate()-1);i.due=d.toISOString().slice(0,10)}
+function render(){R=build();const c=T[tab].c;
+ $('#th').innerHTML='<tr><th>#</th>'+c.map(x=>`<th>${x[1]}</th>`).join('')+'<th></th></tr>';
+ const now=new Date().toISOString().slice(0,10),soon=new Date(Date.now()+30*864e5).toISOString().slice(0,10);
+ $('#tb').innerHTML=R.items.map((o,i)=>{const cl=tab=='cal'&&o.due?(o.due<now?'od':o.due<=soon?'soon':''):'';
+  return`<tr class="${cl}"><td class="s">${i+1}</td>`+c.map(x=>`<td class="${x[2]=='n'?'n':''}"><input data-i="${i}" data-k="${x[0]}" type="${x[2]=='d'?'date':'text'}" value="${esc(o[x[0]])}"></td>`).join('')+`<td><button class="del" data-del="${i}" title="Remove">✕</button></td></tr>`}).join('');
+ $('#by').value=R.by||'';$('#chk').value=R.chk||'';
+ $('#info').textContent=tab=='cal'?'Red = overdue, yellow = due within 30 days. Due date auto-fills from interval.':'New months start from the last saved month (previous stock = last current stock).';
+ document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t==tab));saved()}
+$('#tabs').innerHTML=Object.keys(T).map(k=>`<button class="tab" data-t="${k}">${T[k].n}</button>`).join('');
+$('#tabs').onclick=e=>{if(e.target.dataset.t){tab=e.target.dataset.t;render()}};
+$('#d').value=new Date().toISOString().slice(0,10);$('#d').onchange=render;
+$('#sv').onchange=e=>{if(e.target.value){$('#d').value=e.target.value;render()}};
+$('#tb').addEventListener('input',e=>{const t=e.target,i=t.dataset.i;if(i==null)return;R.items[i][t.dataset.k]=t.value;persist()});
+$('#tb').addEventListener('change',e=>{const t=e.target;if(t.type!='date')return;if(t.dataset.k=='done'||t.dataset.k=='int')due(R.items[t.dataset.i]);persist();render()});
+$('#tb').addEventListener('change',e=>{if(e.target.dataset.k=='int'){due(R.items[e.target.dataset.i]);persist();render()}});
+$('#tb').onclick=e=>{const i=e.target.dataset.del;if(i!=null&&confirm('Remove "'+(R.items[i].name||'this row')+'"?')){R.items.splice(i,1);persist();render()}};
+$('#add').onclick=()=>{R.items.push({name:'',cur:'',prev:''});persist();render();const r=$('#tb').lastElementChild;r&&r.querySelector('input').focus()};
+$('#by').oninput=e=>{R.by=e.target.value;persist()};$('#chk').oninput=e=>{R.chk=e.target.value;persist()};
+$('#sd').onclick=()=>{db.def[tab]=R.items.map(o=>{const r={};T[tab].k.forEach(k=>r[k]=o[k]||'');return r});save();alert('Saved. New months with no earlier record will start from this list.')};
+$('#rd').onclick=()=>{if(confirm('Replace this month\'s list with the built-in default list?')){delete db.def[tab];delete db.rec[key()];render()}};
+$('#dr').onclick=()=>{if(confirm('Delete this month\'s saved record?')){delete db.rec[key()];save();render()}};
+function rows(){const c=T[tab].c;return{head:['#',...c.map(x=>x[1])],body:R.items.map((o,i)=>[i+1,...c.map(x=>x[2]=='d'?dmy(o[x[0]]):o[x[0]]??'')])}}
+$('#xl').onclick=()=>{if(!window.XLSX)return alert('Excel library did not load. Check your internet connection.');const{head,body}=rows();
+ const ws=XLSX.utils.aoa_to_sheet([[T[tab].t],['Date: '+dmy($('#d').value)],[],head,...body,[],['Done By: '+(R.by||''),'','Checked By: '+(R.chk||'')]]);
+ ws['!cols']=head.map((h,i)=>({wch:i==0?5:i==1?42:18}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,T[tab].n.slice(0,31).replace(/[\\/?*[\]:]/g,''));
+ XLSX.writeFile(wb,`${tab}_${$('#d').value}.xlsx`)};
+$('#pf').onclick=()=>{if(!window.jspdf)return alert('PDF library did not load. Check your internet connection.');const{head,body}=rows(),p=new window.jspdf.jsPDF('l','mm','a4');
+ p.setFontSize(14);p.text(T[tab].t,148.5,14,{align:'center'});p.setFontSize(10);p.text('Date: '+dmy($('#d').value),14,22);
+ p.autoTable({head:[head],body,startY:26,styles:{fontSize:8},headStyles:{fillColor:[31,78,121]}});
+ const y=Math.min(p.lastAutoTable.finalY+14,200);p.text('Done By: '+(R.by||''),14,y);p.text('Checked By: '+(R.chk||''),200,y);p.save(`${tab}_${$('#d').value}.pdf`)};
+$('#fb').onclick=()=>{location.href='mailto:jobexperience01@gmail.com?subject='+encodeURIComponent('Lab Monthly Inventory feedback')};
+$('#shr').onclick=async()=>{const u=location.href.startsWith('http')?location.href:'';try{if(navigator.share)await navigator.share({title:'Lab Monthly Inventory',text:'Monthly lab stock and calibration records',url:u||undefined});else{await navigator.clipboard.writeText(u||'Lab Monthly Inventory');alert('Copied to clipboard.')}}catch(e){}};
+render();
+</script></body></html>
